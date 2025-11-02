@@ -180,4 +180,10 @@ class StorageService {
     final nextTime = lastSendTime + (interval * 24 * 60 * 60 * 1000);
     return DateTime.fromMillisecondsSinceEpoch(nextTime);
   }
+
+  // 광고가 포함된 활성 메시지를 SharedPreferences에 저장
+  Future<void> updateActiveMessageWithAd(String messageWithAd) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_activeMessageKey, messageWithAd);
+  }
 }

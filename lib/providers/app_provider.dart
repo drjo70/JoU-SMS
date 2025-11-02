@@ -2,10 +2,12 @@ import 'package:flutter/foundation.dart';
 import '../models/promo_template.dart';
 import '../services/storage_service.dart';
 import '../services/permission_service.dart';
+import '../services/advertisement_service.dart';
 
 class AppProvider extends ChangeNotifier {
   final StorageService _storageService = StorageService();
   final PermissionService _permissionService = PermissionService();
+  final AdvertisementService _adService = AdvertisementService();
 
   List<PromoTemplate> _templates = [];
   List<SendHistory> _history = [];
@@ -125,6 +127,19 @@ class AppProvider extends ChangeNotifier {
 
     _autoSendEnabled = !_autoSendEnabled;
     await _storageService.setAutoSendEnabled(_autoSendEnabled);
+    
+    // 자동 발송 활성화 시 광고 문구를 포함한 메시지 저장
+    if (_autoSendEnabled) {
+      final messageWithAd = await getMessageWithAdvertisement(activeTemplate!.message);
+      await _storageService.updateActiveMessageWithAd(messageWithAd);
+      
+      if (kDebugMode) {
+        debugPrint('📢 광고가 포함된 메시지 저장 완료');
+        debugPrint('원본: ${activeTemplate!.message}');
+        debugPrint('광고 포함: $messageWithAd');
+      }
+    }
+    
     notifyListeners();
   }
 
@@ -172,5 +187,44 @@ class AppProvider extends ChangeNotifier {
   // 다음 발송 가능 시간
   Future<DateTime?> getNextSendTime(String phoneNumber) async {
     return await _storageService.getNextSendTime(phoneNumber);
+  }
+
+  // 광고 문구가 추가된 메시지 생성
+  Future<String> getMessageWithAdvertisement(String originalMessage) async {
+    try {
+      final adText = await _adService.getActiveAdvertisement();
+      
+      if (adText != null && adText.isNotEmpty) {
+        // 광고 문구를 메시지 하단에 추가
+        return '$originalMessage\n\n$adText';
+      }
+      
+      // 광고 문구가 없으면 원본 메시지 반환
+      return originalMessage;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('광고 문구 로드 실패: $e');
+      }
+      return originalMessage;
+    }
+  }
+
+  // SMS 발송 통계 전송
+  Future<void> sendStatistics({
+    required String phoneNumber,
+    required bool success,
+  }) async {
+    try {
+      final deviceId = _adService.generateDeviceId();
+      await _adService.sendSmsStatistics(
+        deviceId: deviceId,
+        phoneNumber: phoneNumber,
+        success: success,
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('통계 전송 실패: $e');
+      }
+    }
   }
 }
