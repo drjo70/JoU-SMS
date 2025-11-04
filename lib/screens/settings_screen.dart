@@ -2,10 +2,37 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'debug_screen.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  String _appVersion = '로딩 중...';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAppVersion();
+  }
+
+  Future<void> _loadAppVersion() async {
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      setState(() {
+        _appVersion = '버전 ${packageInfo.version} (빌드 ${packageInfo.buildNumber})';
+      });
+    } catch (e) {
+      setState(() {
+        _appVersion = '버전 정보 없음';
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -163,7 +190,7 @@ class SettingsScreen extends StatelessWidget {
                           child: const Icon(Icons.info, color: Colors.blue),
                         ),
                         title: const Text('자동 홍보문자'),
-                        subtitle: const Text('버전 1.0.0'),
+                        subtitle: Text(_appVersion),
                       ),
                       const Divider(height: 1),
                       ListTile(
