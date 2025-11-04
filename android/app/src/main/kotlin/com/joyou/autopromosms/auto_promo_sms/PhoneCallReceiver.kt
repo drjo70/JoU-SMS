@@ -16,6 +16,7 @@ class PhoneCallReceiver : BroadcastReceiver() {
         private const val KEY_MESSAGE = "flutter.promo_message"
         private const val KEY_SEND_INTERVAL = "flutter.send_interval"
         private const val KEY_LAST_SEND_TIMES = "flutter.last_send_times"
+        private const val KEY_LAST_INCOMING_NUMBER = "flutter.last_incoming_number"
     }
     
     override fun onReceive(context: Context, intent: Intent) {
@@ -29,15 +30,42 @@ class PhoneCallReceiver : BroadcastReceiver() {
             Log.d(TAG, "전화 상태: $state")
             LogManager.d(TAG, "전화 상태: $state")
             
-            // 전화 수신 상태 확인
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            
+            // RINGING: 전화번호 저장
             if (state == TelephonyManager.EXTRA_STATE_RINGING) {
                 val incomingNumber = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER)
+                Log.d(TAG, "🔔 전화 수신 (RINGING): $incomingNumber")
+                LogManager.i(TAG, "🔔 전화 수신 (RINGING): $incomingNumber")
                 
-                Log.d(TAG, "🔔 전화 수신: $incomingNumber")
-                LogManager.i(TAG, "🔔 전화 수신: $incomingNumber")
+                // 전화번호 저장 (OFFHOOK에서 사용)
+                if (!incomingNumber.isNullOrEmpty()) {
+                    prefs.edit().putString(KEY_LAST_INCOMING_NUMBER, incomingNumber).apply()
+                    Log.d(TAG, "전화번호 저장: $incomingNumber")
+                    LogManager.d(TAG, "전화번호 저장: $incomingNumber")
+                }
+            }
+            
+            // OFFHOOK: 전화 받은 후 SMS 발송
+            else if (state == TelephonyManager.EXTRA_STATE_OFFHOOK) {
+                Log.d(TAG, "📱 전화 연결됨 (OFFHOOK) - SMS 발송 시작")
+                LogManager.i(TAG, "📱 전화 연결됨 (OFFHOOK) - SMS 발송 시작")
+                
+                // 저장된 전화번호 가져오기
+                val incomingNumber = prefs.getString(KEY_LAST_INCOMING_NUMBER, null)
+                
+                if (incomingNumber.isNullOrEmpty()) {
+                    Log.e(TAG, "❌ 저장된 전화번호 없음")
+                    LogManager.e(TAG, "❌ 저장된 전화번호 없음")
+                    Log.d(TAG, "========================================")
+                    LogManager.d(TAG, "========================================")
+                    return
+                }
+                
+                Log.d(TAG, "📞 발송 대상 번호: $incomingNumber")
+                LogManager.i(TAG, "📞 발송 대상 번호: $incomingNumber")
                 
                 // SharedPreferences에서 설정 읽기
-                val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 val isEnabled = prefs.getBoolean(KEY_ENABLED, false)
                 val message = prefs.getString(KEY_MESSAGE, "") ?: ""
                 
