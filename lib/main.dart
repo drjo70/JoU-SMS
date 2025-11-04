@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'firebase_options.dart';
 import 'screens/home_screen.dart';
 import 'providers/app_provider.dart';
@@ -24,11 +25,42 @@ void main() async {
     await userService.updateLastActive();
     
     debugPrint('✅ 사용자 서비스 초기화 완료');
+    
+    // 🔧 중요: 앱 시작 시 필수 권한 자동 요청
+    await requestAllPermissions();
   } catch (e) {
     debugPrint('❌ Firebase initialization failed: $e');
   }
   
   runApp(const MyApp());
+}
+
+/// 앱 시작 시 모든 필수 권한 요청
+Future<void> requestAllPermissions() async {
+  debugPrint('🔐 권한 요청 시작...');
+  
+  // 필수 권한 목록
+  final permissions = [
+    Permission.phone,        // READ_PHONE_STATE
+    Permission.sms,          // SEND_SMS
+    Permission.contacts,     // READ_CONTACTS
+  ];
+  
+  // 권한 요청
+  final statuses = await permissions.request();
+  
+  // 권한 상태 로그
+  statuses.forEach((permission, status) {
+    if (status.isGranted) {
+      debugPrint('✅ ${permission.toString()} 권한 허용됨');
+    } else if (status.isDenied) {
+      debugPrint('❌ ${permission.toString()} 권한 거부됨');
+    } else if (status.isPermanentlyDenied) {
+      debugPrint('⛔ ${permission.toString()} 권한 영구 거부됨 - 설정에서 수동 허용 필요');
+    }
+  });
+  
+  debugPrint('🔐 권한 요청 완료');
 }
 
 /// 앱 버전 체크 (앱 시작 시)

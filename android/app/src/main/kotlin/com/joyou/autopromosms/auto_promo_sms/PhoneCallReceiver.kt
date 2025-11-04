@@ -21,16 +21,20 @@ class PhoneCallReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         try {
             Log.d(TAG, "========================================")
+            LogManager.d(TAG, "========================================")
             Log.d(TAG, "📞 PhoneCallReceiver 실행됨!")
+            LogManager.d(TAG, "📞 PhoneCallReceiver 실행됨!")
             
             val state = intent.getStringExtra(TelephonyManager.EXTRA_STATE)
             Log.d(TAG, "전화 상태: $state")
+            LogManager.d(TAG, "전화 상태: $state")
             
             // 전화 수신 상태 확인
             if (state == TelephonyManager.EXTRA_STATE_RINGING) {
                 val incomingNumber = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER)
                 
                 Log.d(TAG, "🔔 전화 수신: $incomingNumber")
+                LogManager.i(TAG, "🔔 전화 수신: $incomingNumber")
                 
                 // SharedPreferences에서 설정 읽기
                 val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -38,16 +42,22 @@ class PhoneCallReceiver : BroadcastReceiver() {
                 val message = prefs.getString(KEY_MESSAGE, "") ?: ""
                 
                 Log.d(TAG, "자동발송 활성화: $isEnabled")
+                LogManager.d(TAG, "자동발송 활성화: $isEnabled")
                 Log.d(TAG, "메시지 존재: ${message.isNotEmpty()}")
+                LogManager.d(TAG, "메시지 존재: ${message.isNotEmpty()}")
                 Log.d(TAG, "메시지 내용: ${if (message.length > 50) message.substring(0, 50) + "..." else message}")
+                LogManager.d(TAG, "메시지 내용: ${if (message.length > 50) message.substring(0, 50) + "..." else message}")
                 Log.d(TAG, "전화번호 존재: ${!incomingNumber.isNullOrEmpty()}")
+                LogManager.d(TAG, "전화번호 존재: ${!incomingNumber.isNullOrEmpty()}")
                 
                 if (isEnabled && message.isNotEmpty() && !incomingNumber.isNullOrEmpty()) {
                     Log.d(TAG, "✅ 모든 조건 통과! 발송 간격 체크 중...")
+                    LogManager.i(TAG, "✅ 모든 조건 통과! 발송 간격 체크 중...")
                     
                     // 발송 가능 여부 체크 (간격 확인)
                     if (canSendToNumber(prefs, incomingNumber)) {
                         Log.d(TAG, "🚀 SMS 발송 시작: $incomingNumber")
+                        LogManager.i(TAG, "🚀 SMS 발송 시작: $incomingNumber")
                         
                         // SMS 발송
                         sendSMS(incomingNumber, message, context)
@@ -59,21 +69,36 @@ class PhoneCallReceiver : BroadcastReceiver() {
                         updateLastSendTime(prefs, incomingNumber)
                         
                         Log.d(TAG, "✅ SMS 발송 완료: $incomingNumber")
+                        LogManager.i(TAG, "✅ SMS 발송 완료: $incomingNumber")
                     } else {
                         Log.d(TAG, "⏳ 발송 간격 제한으로 스킵: $incomingNumber")
+                        LogManager.w(TAG, "⏳ 발송 간격 제한으로 스킵: $incomingNumber")
                     }
                 } else {
                     Log.e(TAG, "❌ 발송 조건 미충족!")
-                    if (!isEnabled) Log.e(TAG, "  - 자동발송이 비활성화됨")
-                    if (message.isEmpty()) Log.e(TAG, "  - 메시지가 비어있음")
-                    if (incomingNumber.isNullOrEmpty()) Log.e(TAG, "  - 전화번호가 없음")
+                    LogManager.e(TAG, "❌ 발송 조건 미충족!")
+                    if (!isEnabled) {
+                        Log.e(TAG, "  - 자동발송이 비활성화됨")
+                        LogManager.e(TAG, "  - 자동발송이 비활성화됨")
+                    }
+                    if (message.isEmpty()) {
+                        Log.e(TAG, "  - 메시지가 비어있음")
+                        LogManager.e(TAG, "  - 메시지가 비어있음")
+                    }
+                    if (incomingNumber.isNullOrEmpty()) {
+                        Log.e(TAG, "  - 전화번호가 없음")
+                        LogManager.e(TAG, "  - 전화번호가 없음")
+                    }
                 }
             } else {
                 Log.d(TAG, "전화 수신 상태 아님 (상태: $state)")
+                LogManager.d(TAG, "전화 수신 상태 아님 (상태: $state)")
             }
             Log.d(TAG, "========================================")
+            LogManager.d(TAG, "========================================")
         } catch (e: Exception) {
             Log.e(TAG, "❌❌❌ 치명적 오류 발생: ${e.message}", e)
+            LogManager.e(TAG, "❌❌❌ 치명적 오류 발생: ${e.message}")
             e.printStackTrace()
         }
     }

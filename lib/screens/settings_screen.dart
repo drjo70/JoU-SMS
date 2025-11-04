@@ -4,6 +4,7 @@ import '../providers/app_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'debug_screen.dart';
+import 'realtime_log_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -218,6 +219,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             context,
                             MaterialPageRoute(
                               builder: (context) => const DebugScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.terminal, color: Colors.orange),
+                        ),
+                        title: const Text('실시간 로그 뷰어'),
+                        subtitle: const Text('앱 실행 중 발생하는 로그를 실시간으로 확인'),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const RealtimeLogScreen(),
                             ),
                           );
                         },
