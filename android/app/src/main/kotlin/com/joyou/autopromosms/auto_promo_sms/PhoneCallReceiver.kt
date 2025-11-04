@@ -96,34 +96,60 @@ class PhoneCallReceiver : BroadcastReceiver() {
 
     private fun sendSms(context: Context, phoneNumber: String) {
         try {
+            print("🔧 [v0.1] sendSms() 시작!")
+            print("  - 받는 사람: $phoneNumber")
+            
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            
+            print("📂 [v0.1] SharedPreferences 파일 확인:")
+            print("  - 파일명: $PREFS_NAME")
+            print("  - 키(자동발송): $KEY_ENABLED")
+            print("  - 키(메시지): $KEY_MESSAGE")
+            
+            // 모든 키 출력
+            val allKeys = prefs.all.keys.joinToString(", ")
+            print("🔑 [v0.1] 저장된 모든 키: $allKeys")
             
             // 설정 확인
             val enabled = prefs.getBoolean(KEY_ENABLED, false)
             val message = prefs.getString(KEY_MESSAGE, null)
             
-            print("⚙️ [v0.1] 설정 확인:")
-            print("  - 자동발송: $enabled")
+            print("⚙️ [v0.1] 설정 값 확인:")
+            print("  - 자동발송($KEY_ENABLED): $enabled")
             print("  - 메시지 존재: ${message != null}")
+            if (message != null) {
+                print("  - 메시지 내용: $message")
+                print("  - 메시지 길이: ${message.length}자")
+            }
             
             if (!enabled) {
-                print("⏸️ [v0.1] 자동발송 꺼짐 - SMS 발송 안 함")
+                print("⏸️⏸️⏸️ [v0.1] 자동발송이 꺼져있습니다!")
+                print("  - KEY_ENABLED = false")
+                print("  - SMS 발송하지 않음")
                 return
             }
             
             if (message.isNullOrEmpty()) {
-                print("❌ [v0.1] 메시지 없음 - SMS 발송 안 함")
+                print("❌❌❌ [v0.1] 메시지가 비어있습니다!")
+                print("  - KEY_MESSAGE = null or empty")
+                print("  - SMS 발송하지 않음")
                 return
             }
             
             // SMS 발송
-            print("🚀 [v0.1] SMS 발송 시작...")
+            print("🚀🚀🚀 [v0.1] SMS 발송 시도!")
+            print("  - 받는 사람: $phoneNumber")
+            print("  - 메시지: $message")
+            
             val smsManager = SmsManager.getDefault()
             smsManager.sendTextMessage(phoneNumber, null, message, null, null)
-            print("✅ [v0.1] SMS 발송 완료!")
+            
+            print("✅✅✅ [v0.1] SMS 발송 완료!")
             
         } catch (e: Exception) {
-            print("❌ [v0.1] SMS 발송 실패: ${e.message}")
+            print("❌❌❌ [v0.1] SMS 발송 실패!")
+            print("  - 오류: ${e.message}")
+            print("  - 스택: ${e.stackTraceToString()}")
         }
     }
 }

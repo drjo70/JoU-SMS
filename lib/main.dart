@@ -41,12 +41,84 @@ class _HomePageState extends State<HomePage> {
   String _currentVersion = '0.1.0';
   String _latestVersion = '';
   bool _hasUpdate = false;
+  
+  // 권한 상태
+  bool _permissionsGranted = false;
+  String _permissionStatus = '권한 확인 중...';
 
   @override
   void initState() {
     super.initState();
+    _requestPermissions(); // 앱 시작 시 즉시 권한 요청
     _loadSettings();
     _checkForUpdates();
+  }
+
+  // 앱 시작 시 권한 요청
+  Future<void> _requestPermissions() async {
+    print('🔐 [v0.1] 권한 요청 시작...');
+    
+    try {
+      // SMS 권한
+      final smsStatus = await Permission.sms.request();
+      print('📱 [v0.1] SMS 권한: $smsStatus');
+      
+      // 전화 권한
+      final phoneStatus = await Permission.phone.request();
+      print('☎️ [v0.1] 전화 권한: $phoneStatus');
+      
+      // 연락처 권한
+      final contactsStatus = await Permission.contacts.request();
+      print('👥 [v0.1] 연락처 권한: $contactsStatus');
+      
+      final allGranted = smsStatus.isGranted && 
+                         phoneStatus.isGranted && 
+                         contactsStatus.isGranted;
+      
+      setState(() {
+        _permissionsGranted = allGranted;
+        _permissionStatus = allGranted ? '모든 권한 허용됨 ✅' : '일부 권한 거부됨 ❌';
+      });
+      
+      if (allGranted) {
+        print('✅ [v0.1] 모든 권한 허용됨!');
+      } else {
+        print('❌ [v0.1] 일부 권한 거부됨!');
+        _showPermissionDialog();
+      }
+    } catch (e) {
+      print('❌ [v0.1] 권한 요청 오류: $e');
+      setState(() {
+        _permissionStatus = '권한 요청 실패';
+      });
+    }
+  }
+
+  // 권한 거부 시 안내 다이얼로그
+  void _showPermissionDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('⚠️ 권한 필요'),
+        content: const Text(
+          '자동문자 발송을 위해서는\nSMS, 전화, 연락처 권한이\n모두 필요합니다.\n\n설정에서 권한을 허용해주세요.'
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('닫기'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await openAppSettings();
+            },
+            child: const Text('설정 열기'),
+          ),
+        ],
+      ),
+    );
   }
 
   // 설정 불러오기
@@ -54,14 +126,18 @@ class _HomePageState extends State<HomePage> {
     print('📂 [v0.1] 설정 불러오기 시작...');
     final prefs = await SharedPreferences.getInstance();
     
+    final enabled = prefs.getBool('auto_send_enabled') ?? false;
+    final msg = prefs.getString('message') ?? _message;
+    
     setState(() {
-      _autoSendEnabled = prefs.getBool('auto_send_enabled') ?? false;
-      _message = prefs.getString('message') ?? _message;
-      _messageController.text = _message;
+      _autoSendEnabled = enabled;
+      _message = msg;
+      _messageController.text = msg;
     });
     
     print('✅ [v0.1] 설정 불러오기 완료');
     print('  - 자동발송: $_autoSendEnabled');
+    print('  - 메시지: $_message');
     print('  - 메시지 길이: ${_message.length}자');
   }
 
@@ -70,13 +146,11 @@ class _HomePageState extends State<HomePage> {
     try {
       print('🔍 [v0.1] 업데이트 체크 시작...');
       
-      // 현재 버전 가져오기
       final packageInfo = await PackageInfo.fromPlatform();
       _currentVersion = packageInfo.version;
       
-      // GitHub API에서 최신 릴리즈 확인
       final response = await http.get(
-        Uri.parse('https://api.github.com/repos/zoenation/jou-sms-auto/releases/latest'),
+        Uri.parse('https://api.github.com/repos/drjo70/JoU-SMS/releases/latest'),
       ).timeout(const Duration(seconds: 5));
       
       if (response.statusCode == 200) {
@@ -103,7 +177,6 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // 버전 비교 (0.1.0 vs 0.2.0)
   int _compareVersions(String v1, String v2) {
     final parts1 = v1.split('.').map(int.parse).toList();
     final parts2 = v2.split('.').map(int.parse).toList();
@@ -115,7 +188,6 @@ class _HomePageState extends State<HomePage> {
     return 0;
   }
 
-  // 업데이트 다이얼로그
   void _showUpdateDialog(String downloadUrl) {
     showDialog(
       context: context,
@@ -130,7 +202,6 @@ class _HomePageState extends State<HomePage> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              // TODO: 다운로드 페이지로 이동
               print('📥 다운로드 URL: $downloadUrl');
             },
             child: const Text('업데이트'),
@@ -142,36 +213,59 @@ class _HomePageState extends State<HomePage> {
 
   // 자동발송 토글
   Future<void> _toggleAutoSend() async {
-    print('🔄 [v0.1] 자동발송 토글 호출 (현재: $_autoSendEnabled)');
+    print('🔄🔄🔄 [v0.1] 자동발송 토글 호출!');
+    print('  - 현재 상태: $_autoSendEnabled');
+    print('  - 권한 상태: $_permissionsGranted');
     
-    // 권한 체크
-    if (!_autoSendEnabled) {
-      final smsGranted = await Permission.sms.request();
-      final phoneGranted = await Permission.phone.request();
-      final contactsGranted = await Permission.contacts.request();
-      
-      if (!smsGranted.isGranted || !phoneGranted.isGranted || !contactsGranted.isGranted) {
-        print('❌ [v0.1] 권한 거부됨');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('권한이 필요합니다!')),
-          );
-        }
+    // 권한 재확인
+    if (!_permissionsGranted) {
+      print('❌ [v0.1] 권한 없음 - 재요청');
+      await _requestPermissions();
+      if (!_permissionsGranted) {
         return;
       }
-      print('✅ [v0.1] 권한 허용됨');
+    }
+    
+    // 메시지 확인
+    if (_message.trim().isEmpty) {
+      print('❌ [v0.1] 메시지 없음!');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('먼저 메시지를 입력하고 저장해주세요!')),
+      );
+      return;
     }
     
     // 상태 변경
     final newValue = !_autoSendEnabled;
+    print('📝 [v0.1] SharedPreferences 저장 시작...');
+    print('  - 키: auto_send_enabled');
+    print('  - 값: $newValue');
+    
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('auto_send_enabled', newValue);
+    
+    // 즉시 검증
+    final saved = prefs.getBool('auto_send_enabled');
+    print('🔍 [v0.1] 저장 후 즉시 확인: $saved');
+    
+    if (saved == newValue) {
+      print('✅ [v0.1] SharedPreferences 저장 성공!');
+    } else {
+      print('❌❌❌ [v0.1] SharedPreferences 저장 실패!');
+    }
     
     setState(() {
       _autoSendEnabled = newValue;
     });
     
-    print('✅ [v0.1] 자동발송 상태 변경: $_autoSendEnabled');
+    print('🎉 [v0.1] 자동발송 토글 완료! 최종 상태: $_autoSendEnabled');
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(_autoSendEnabled ? '자동발송 켜짐! ✅' : '자동발송 꺼짐'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   // 메시지 저장
@@ -185,19 +279,26 @@ class _HomePageState extends State<HomePage> {
       return;
     }
     
-    print('💾 [v0.1] 메시지 저장 중...');
+    print('💾 [v0.1] 메시지 저장 시작...');
+    print('  - 메시지: $newMessage');
+    print('  - 길이: ${newMessage.length}자');
+    
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('message', newMessage);
+    
+    // 즉시 검증
+    final saved = prefs.getString('message');
+    print('🔍 [v0.1] 저장 후 확인: $saved');
     
     setState(() {
       _message = newMessage;
     });
     
-    print('✅ [v0.1] 메시지 저장 완료 (${newMessage.length}자)');
+    print('✅ [v0.1] 메시지 저장 완료!');
     
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('저장 완료!')),
+        const SnackBar(content: Text('저장 완료! ✅')),
       );
     }
   }
@@ -209,7 +310,6 @@ class _HomePageState extends State<HomePage> {
         title: const Text('JoU 자동문자'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
-          // 업데이트 배지
           if (_hasUpdate)
             Padding(
               padding: const EdgeInsets.only(right: 16),
@@ -235,10 +335,20 @@ class _HomePageState extends State<HomePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 버전 정보
+              // 버전 + 권한 상태
               Text(
                 'v$_currentVersion',
                 style: Theme.of(context).textTheme.bodySmall,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _permissionStatus,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: _permissionsGranted ? Colors.green : Colors.red,
+                  fontWeight: FontWeight.bold,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 32),
@@ -320,9 +430,19 @@ class _HomePageState extends State<HomePage> {
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(height: 8),
-                      const Text('1. 메시지를 입력하고 저장'),
-                      const Text('2. 자동발송을 켬'),
-                      const Text('3. 전화가 오면 자동으로 문자 발송!'),
+                      const Text('1. 권한 모두 허용 ⚠️'),
+                      const Text('2. 메시지를 입력하고 저장'),
+                      const Text('3. 자동발송을 켬'),
+                      const Text('4. 전화가 오면 자동으로 문자 발송!'),
+                      const SizedBox(height: 12),
+                      Text(
+                        '💡 로그 뷰어로 작동 확인 가능',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.blue.shade700,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ],
                   ),
                 ),
