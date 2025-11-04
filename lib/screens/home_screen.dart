@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
+import '../main.dart' show checkAppVersion;
 import 'templates_screen.dart';
 import 'history_screen.dart';
 import 'settings_screen.dart';
@@ -25,10 +26,27 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // 앱 초기화
+    // 앱 초기화 및 버전 체크
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AppProvider>().initialize();
+      
+      // 버전 체크 (비동기)
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          _checkForUpdates();
+        }
+      });
     });
+  }
+
+  // 앱 업데이트 체크
+  void _checkForUpdates() async {
+    try {
+      // main.dart에서 import한 함수 사용
+      await checkAppVersion(context);
+    } catch (e) {
+      debugPrint('업데이트 체크 실패: $e');
+    }
   }
 
   @override

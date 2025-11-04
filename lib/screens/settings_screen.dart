@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'debug_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -171,6 +172,28 @@ class SettingsScreen extends StatelessWidget {
                         subtitle: const Text(
                           '전화가 올 때 자동으로 홍보 문자를 발송하는\n소상공인 마케팅 앱',
                         ),
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.bug_report, color: Colors.red),
+                        ),
+                        title: const Text('디버그 로그'),
+                        subtitle: const Text('문제 해결을 위한 상세 로그'),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const DebugScreen(),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),

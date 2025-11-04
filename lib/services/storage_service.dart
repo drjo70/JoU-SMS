@@ -3,22 +3,39 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/promo_template.dart';
 
 class StorageService {
-  static const String _templatesKey = 'promo_templates';
-  static const String _historyKey = 'send_history';
-  static const String _enabledKey = 'auto_send_enabled';
-  static const String _activeMessageKey = 'promo_message';
-  static const String _sendIntervalKey = 'send_interval';
-  static const String _lastSendTimesKey = 'last_send_times';
+  static const String _templatesKey = 'flutter.templates';
+  static const String _historyKey = 'flutter.history';
+  static const String _enabledKey = 'flutter.auto_send_enabled';
+  static const String _activeMessageKey = 'flutter.promo_message';
+  static const String _sendIntervalKey = 'flutter.send_interval';
+  static const String _lastSendTimesKey = 'flutter.last_send_times';
 
   // 템플릿 관리
   Future<List<PromoTemplate>> getTemplates() async {
     final prefs = await SharedPreferences.getInstance();
-    final jsonString = prefs.getString(_templatesKey);
+    
+    // 먼저 새 키로 시도
+    String? jsonString = prefs.getString(_templatesKey);
+    
+    // 없으면 구 키에서 마이그레이션
+    if (jsonString == null) {
+      jsonString = prefs.getString('promo_templates');
+      if (jsonString != null) {
+        // 구 데이터를 새 키로 마이그레이션
+        await prefs.setString(_templatesKey, jsonString);
+        await prefs.remove('promo_templates');
+      }
+    }
     
     if (jsonString == null) return [];
     
-    final List<dynamic> jsonList = jsonDecode(jsonString);
-    return jsonList.map((json) => PromoTemplate.fromJson(json)).toList();
+    try {
+      final List<dynamic> jsonList = jsonDecode(jsonString);
+      return jsonList.map((json) => PromoTemplate.fromJson(json)).toList();
+    } catch (e) {
+      // JSON 파싱 오류 시 빈 리스트 반환
+      return [];
+    }
   }
 
   Future<void> saveTemplates(List<PromoTemplate> templates) async {
@@ -76,7 +93,20 @@ class StorageService {
   // 자동 발송 설정
   Future<bool> getAutoSendEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_enabledKey) ?? false;
+    
+    // 먼저 새 키로 시도
+    bool? enabled = prefs.getBool(_enabledKey);
+    
+    // 없으면 구 키에서 마이그레이션
+    if (enabled == null) {
+      enabled = prefs.getBool('auto_send_enabled');
+      if (enabled != null) {
+        await prefs.setBool(_enabledKey, enabled);
+        await prefs.remove('auto_send_enabled');
+      }
+    }
+    
+    return enabled ?? false;
   }
 
   Future<void> setAutoSendEnabled(bool enabled) async {
@@ -87,7 +117,17 @@ class StorageService {
   // 발송 기록 관리
   Future<List<SendHistory>> getHistory() async {
     final prefs = await SharedPreferences.getInstance();
-    final historyJson = prefs.getString(_historyKey);
+    
+    // 먼저 새 키로 시도
+    String? historyJson = prefs.getString(_historyKey);
+    
+    // 없으면 구 키에서 마이그레이션
+    if (historyJson == null) {
+      historyJson = prefs.getString('send_history');
+      if (historyJson != null) {
+        await prefs.setString(_historyKey, historyJson);
+      }
+    }
     
     if (historyJson == null) return [];
     

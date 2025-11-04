@@ -1,21 +1,54 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'screens/home_screen.dart';
 import 'providers/app_provider.dart';
+import 'services/version_check_service.dart';
+import 'services/user_service.dart';
+import 'widgets/update_dialog.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   try {
-    // Firebase 초기화
-    await Firebase.initializeApp();
+    // Firebase 초기화 (옵션 포함)
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
     debugPrint('✅ Firebase initialized successfully');
+    
+    // 사용자 등록 (앱 최초 실행 시)
+    final userService = UserService();
+    await userService.registerUser();
+    await userService.updateLastActive();
+    
+    debugPrint('✅ 사용자 서비스 초기화 완료');
   } catch (e) {
     debugPrint('❌ Firebase initialization failed: $e');
   }
   
   runApp(const MyApp());
+}
+
+/// 앱 버전 체크 (앱 시작 시)
+Future<void> checkAppVersion(BuildContext context) async {
+  try {
+    final versionService = VersionCheckService();
+    final updateInfo = await versionService.checkForUpdate();
+
+    if (updateInfo != null && updateInfo.isUpdateAvailable) {
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: !updateInfo.forceUpdate,
+          builder: (context) => UpdateDialog(updateInfo: updateInfo),
+        );
+      }
+    }
+  } catch (e) {
+    debugPrint('버전 체크 실패: $e');
+  }
 }
 
 class MyApp extends StatelessWidget {

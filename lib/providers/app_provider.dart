@@ -3,11 +3,13 @@ import '../models/promo_template.dart';
 import '../services/storage_service.dart';
 import '../services/permission_service.dart';
 import '../services/advertisement_service.dart';
+import '../services/user_service.dart';
 
 class AppProvider extends ChangeNotifier {
   final StorageService _storageService = StorageService();
   final PermissionService _permissionService = PermissionService();
   final AdvertisementService _adService = AdvertisementService();
+  final UserService _userService = UserService();
 
   List<PromoTemplate> _templates = [];
   List<SendHistory> _history = [];
@@ -215,12 +217,20 @@ class AppProvider extends ChangeNotifier {
     required bool success,
   }) async {
     try {
+      // Firestore에 사용자별 통계 업데이트
+      await _userService.updateSendStatistics(success);
+      
+      // 광고 서비스에도 통계 전송
       final deviceId = _adService.generateDeviceId();
       await _adService.sendSmsStatistics(
         deviceId: deviceId,
         phoneNumber: phoneNumber,
         success: success,
       );
+      
+      if (kDebugMode) {
+        debugPrint('✅ 통계 업데이트 완료: ${success ? "성공" : "실패"}');
+      }
     } catch (e) {
       if (kDebugMode) {
         debugPrint('통계 전송 실패: $e');
