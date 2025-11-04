@@ -31,30 +31,44 @@ class PhoneCallReceiver : BroadcastReceiver() {
             TelephonyManager.EXTRA_STATE_RINGING -> {
                 isIncoming = true
                 savedNumber = number
-                print("📲 [v0.1] 전화 수신 중: $number")
+                print("📲 [v0.1.2] 전화 수신 중: $number")
+                print("  - isIncoming = true")
+                print("  - savedNumber = $number")
             }
             
             TelephonyManager.EXTRA_STATE_OFFHOOK -> {
-                print("☎️ [v0.1] 통화 시작")
+                print("☎️ [v0.1.2] 통화 시작")
+                print("  - isIncoming = $isIncoming")
             }
             
             TelephonyManager.EXTRA_STATE_IDLE -> {
+                print("🔚 [v0.1.2] IDLE 상태 (전화 종료)")
+                print("  - lastState = $lastState")
+                print("  - isIncoming = $isIncoming")
+                
+                // OFFHOOK에서 IDLE로 변경 && 수신 전화였다면
                 if (lastState == TelephonyManager.CALL_STATE_OFFHOOK && isIncoming) {
-                    print("✅ [v0.1] 통화 종료 - SMS 발송 시도")
+                    print("✅ [v0.1.2] 통화 종료 감지 - SMS 발송 시도")
                     
                     // 전화번호 가져오기
                     val phoneNumber = savedNumber ?: getLastIncomingNumber(context)
                     
                     if (phoneNumber != null) {
-                        print("📱 [v0.1] 전화번호: $phoneNumber")
+                        print("📱 [v0.1.2] 전화번호: $phoneNumber")
                         sendSms(context, phoneNumber)
                     } else {
-                        print("❌ [v0.1] 전화번호 없음")
+                        print("❌ [v0.1.2] 전화번호 없음")
                     }
-                    
-                    isIncoming = false
-                    savedNumber = null
+                } else {
+                    print("⏭️ [v0.1.2] SMS 발송 조건 미충족")
+                    print("  - lastState == OFFHOOK? ${lastState == TelephonyManager.CALL_STATE_OFFHOOK}")
+                    print("  - isIncoming? $isIncoming")
                 }
+                
+                // 상태 초기화 (중요!)
+                isIncoming = false
+                savedNumber = null
+                print("🔄 [v0.1.2] 상태 초기화 완료 (다음 전화 대기)")
             }
         }
 
