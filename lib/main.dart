@@ -4,8 +4,13 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'services/log_service.dart';
+import 'screens/log_viewer_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await LogService().init();
+  await LogService().log('🚀 [v0.2.0] 앱 시작!');
   runApp(const MyApp());
 }
 
@@ -38,7 +43,8 @@ class _HomePageState extends State<HomePage> {
   String _message = '안녕하세요! (주)조유입니다.\n전화 주셔서 감사합니다.';
   final TextEditingController _messageController = TextEditingController();
   
-  String _currentVersion = '0.1.0';
+  final LogService _logService = LogService();
+  String _currentVersion = '0.2.0';
   String _latestVersion = '';
   bool _hasUpdate = false;
   
@@ -56,20 +62,20 @@ class _HomePageState extends State<HomePage> {
 
   // 앱 시작 시 권한 요청
   Future<void> _requestPermissions() async {
-    print('🔐 [v0.1] 권한 요청 시작...');
+    _logService.log('🔐 [v0.2.0] 권한 요청 시작...');
     
     try {
       // SMS 권한
       final smsStatus = await Permission.sms.request();
-      print('📱 [v0.1] SMS 권한: $smsStatus');
+      _logService.log('📱 [v0.2.0] SMS 권한: $smsStatus');
       
       // 전화 권한
       final phoneStatus = await Permission.phone.request();
-      print('☎️ [v0.1] 전화 권한: $phoneStatus');
+      _logService.log('☎️ [v0.2.0] 전화 권한: $phoneStatus');
       
       // 연락처 권한
       final contactsStatus = await Permission.contacts.request();
-      print('👥 [v0.1] 연락처 권한: $contactsStatus');
+      _logService.log('👥 [v0.2.0] 연락처 권한: $contactsStatus');
       
       final allGranted = smsStatus.isGranted && 
                          phoneStatus.isGranted && 
@@ -81,13 +87,13 @@ class _HomePageState extends State<HomePage> {
       });
       
       if (allGranted) {
-        print('✅ [v0.1] 모든 권한 허용됨!');
+        _logService.log('✅ [v0.2.0] 모든 권한 허용됨!');
       } else {
-        print('❌ [v0.1] 일부 권한 거부됨!');
+        _logService.log('❌ [v0.2.0] 일부 권한 거부됨!');
         _showPermissionDialog();
       }
     } catch (e) {
-      print('❌ [v0.1] 권한 요청 오류: $e');
+      _logService.log('❌ [v0.2.0] 권한 요청 오류: $e');
       setState(() {
         _permissionStatus = '권한 요청 실패';
       });
@@ -123,7 +129,7 @@ class _HomePageState extends State<HomePage> {
 
   // 설정 불러오기
   Future<void> _loadSettings() async {
-    print('📂 [v0.1] 설정 불러오기 시작...');
+    _logService.log('📂 [v0.2.0] 설정 불러오기 시작...');
     final prefs = await SharedPreferences.getInstance();
     
     final enabled = prefs.getBool('auto_send_enabled') ?? false;
@@ -135,16 +141,16 @@ class _HomePageState extends State<HomePage> {
       _messageController.text = msg;
     });
     
-    print('✅ [v0.1] 설정 불러오기 완료');
-    print('  - 자동발송: $_autoSendEnabled');
-    print('  - 메시지: $_message');
-    print('  - 메시지 길이: ${_message.length}자');
+    _logService.log('✅ [v0.2.0] 설정 불러오기 완료');
+    _logService.log('  - 자동발송: $_autoSendEnabled');
+    _logService.log('  - 메시지: $_message');
+    _logService.log('  - 메시지 길이: ${_message.length}자');
   }
 
   // 업데이트 체크
   Future<void> _checkForUpdates() async {
     try {
-      print('🔍 [v0.1] 업데이트 체크 시작...');
+      _logService.log('🔍 [v0.2.0] 업데이트 체크 시작...');
       
       final packageInfo = await PackageInfo.fromPlatform();
       _currentVersion = packageInfo.version;
@@ -157,23 +163,23 @@ class _HomePageState extends State<HomePage> {
         final data = json.decode(response.body);
         _latestVersion = (data['tag_name'] as String).replaceAll('v', '');
         
-        print('✅ [v0.1] 버전 확인 완료');
-        print('  - 현재: $_currentVersion');
-        print('  - 최신: $_latestVersion');
+        _logService.log('✅ [v0.2.0] 버전 확인 완료');
+        _logService.log('  - 현재: $_currentVersion');
+        _logService.log('  - 최신: $_latestVersion');
         
         setState(() {
           _hasUpdate = _compareVersions(_currentVersion, _latestVersion) < 0;
         });
         
         if (_hasUpdate) {
-          print('🎉 [v0.1] 새 버전 발견!');
+          _logService.log('🎉 [v0.2.0] 새 버전 발견!');
           _showUpdateDialog(data['html_url']);
         } else {
-          print('✅ [v0.1] 최신 버전 사용 중');
+          _logService.log('✅ [v0.2.0] 최신 버전 사용 중');
         }
       }
     } catch (e) {
-      print('⚠️ [v0.1] 업데이트 체크 실패: $e');
+      _logService.log('⚠️ [v0.2.0] 업데이트 체크 실패: $e');
     }
   }
 
@@ -202,7 +208,7 @@ class _HomePageState extends State<HomePage> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              print('📥 다운로드 URL: $downloadUrl');
+              _logService.log('📥 다운로드 URL: $downloadUrl');
             },
             child: const Text('업데이트'),
           ),
@@ -213,13 +219,13 @@ class _HomePageState extends State<HomePage> {
 
   // 자동발송 토글
   Future<void> _toggleAutoSend() async {
-    print('🔄🔄🔄 [v0.1] 자동발송 토글 호출!');
-    print('  - 현재 상태: $_autoSendEnabled');
-    print('  - 권한 상태: $_permissionsGranted');
+    _logService.log('🔄🔄🔄 [v0.2.0] 자동발송 토글 호출!');
+    _logService.log('  - 현재 상태: $_autoSendEnabled');
+    _logService.log('  - 권한 상태: $_permissionsGranted');
     
     // 권한 재확인
     if (!_permissionsGranted) {
-      print('❌ [v0.1] 권한 없음 - 재요청');
+      _logService.log('❌ [v0.2.0] 권한 없음 - 재요청');
       await _requestPermissions();
       if (!_permissionsGranted) {
         return;
@@ -228,7 +234,7 @@ class _HomePageState extends State<HomePage> {
     
     // 메시지 확인
     if (_message.trim().isEmpty) {
-      print('❌ [v0.1] 메시지 없음!');
+      _logService.log('❌ [v0.2.0] 메시지 없음!');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('먼저 메시지를 입력하고 저장해주세요!')),
       );
@@ -237,28 +243,28 @@ class _HomePageState extends State<HomePage> {
     
     // 상태 변경
     final newValue = !_autoSendEnabled;
-    print('📝 [v0.1] SharedPreferences 저장 시작...');
-    print('  - 키: auto_send_enabled');
-    print('  - 값: $newValue');
+    _logService.log('📝 [v0.2.0] SharedPreferences 저장 시작...');
+    _logService.log('  - 키: auto_send_enabled');
+    _logService.log('  - 값: $newValue');
     
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('auto_send_enabled', newValue);
     
     // 즉시 검증
     final saved = prefs.getBool('auto_send_enabled');
-    print('🔍 [v0.1] 저장 후 즉시 확인: $saved');
+    _logService.log('🔍 [v0.2.0] 저장 후 즉시 확인: $saved');
     
     if (saved == newValue) {
-      print('✅ [v0.1] SharedPreferences 저장 성공!');
+      _logService.log('✅ [v0.2.0] SharedPreferences 저장 성공!');
     } else {
-      print('❌❌❌ [v0.1] SharedPreferences 저장 실패!');
+      _logService.log('❌❌❌ [v0.2.0] SharedPreferences 저장 실패!');
     }
     
     setState(() {
       _autoSendEnabled = newValue;
     });
     
-    print('🎉 [v0.1] 자동발송 토글 완료! 최종 상태: $_autoSendEnabled');
+    _logService.log('🎉 [v0.2.0] 자동발송 토글 완료! 최종 상태: $_autoSendEnabled');
     
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -279,16 +285,16 @@ class _HomePageState extends State<HomePage> {
       return;
     }
     
-    print('💾 [v0.1] 메시지 저장 시작...');
-    print('  - 메시지: $newMessage');
-    print('  - 길이: ${newMessage.length}자');
+    _logService.log('💾 [v0.2.0] 메시지 저장 시작...');
+    _logService.log('  - 메시지: $newMessage');
+    _logService.log('  - 길이: ${newMessage.length}자');
     
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('message', newMessage);
     
     // 즉시 검증
     final saved = prefs.getString('message');
-    print('🔍 [v0.1] 저장 후 확인: $saved');
+    _logService.log('🔍 [v0.2.0] 저장 후 확인: $saved');
     
     setState(() {
       _message = newMessage;
@@ -310,6 +316,19 @@ class _HomePageState extends State<HomePage> {
         title: const Text('JoU 문자발송'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
+          // 로그 뷰어 버튼
+          IconButton(
+            icon: const Icon(Icons.bug_report),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const LogViewerScreen(),
+                ),
+              );
+            },
+            tooltip: '로그 보기',
+          ),
           if (_hasUpdate)
             Padding(
               padding: const EdgeInsets.only(right: 16),
