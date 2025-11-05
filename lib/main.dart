@@ -15,7 +15,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'JoU 자동문자',
+      title: 'JoU 문자발송',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
@@ -307,7 +307,7 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('JoU 자동문자'),
+        title: const Text('JoU 문자발송'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
           if (_hasUpdate)

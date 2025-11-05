@@ -7,7 +7,7 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     
     <application
-        android:label="auto_promo_sms"
+        android:label="JoU 문자발송"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
