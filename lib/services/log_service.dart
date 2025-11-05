@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
 
@@ -47,6 +48,8 @@ class LogService {
         await _logFile!.writeAsString(
           '$logMessage\n',
           mode: FileMode.append,
+          encoding: utf8,
+          flush: true,
         );
       }
     } catch (e) {
@@ -65,11 +68,12 @@ class LogService {
   Future<String> getAllLogs() async {
     try {
       if (_logFile != null && await _logFile!.exists()) {
-        final contents = await _logFile!.readAsString();
+        final contents = await _logFile!.readAsString(encoding: utf8);
         return contents;
       }
     } catch (e) {
-      return '로그 읽기 실패: $e';
+      // 파일 읽기 실패 시 메모리 로그 반환
+      return '파일 읽기 실패 (메모리 로그 표시):\n\n${_memoryLogs.reversed.join('\n')}';
     }
     return '로그가 없습니다';
   }
