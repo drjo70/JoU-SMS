@@ -2,7 +2,7 @@ name: auto_promo_sms
 description: "소상공인을 위한 초간단 자동 홍보문자 앱"
 publish_to: 'none'
 
-version: 0.2.3+8
+version: 0.2.4+9
 
 environment:
   sdk: ^3.9.2
