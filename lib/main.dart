@@ -76,40 +76,37 @@ class _HomePageState extends State<HomePage> {
   Future<void> _requestPermissions() async {
     _addLog('🔐 권한 요청 시작...');
     
-    // phone_state 플러그인이 전화번호를 읽으려면 이 권한들이 필요
     final permissions = await [
       Permission.sms,
       Permission.phone,
-      Permission.contacts,
     ].request();
 
     _addLog('📱 SMS 권한: ${permissions[Permission.sms]}');
     _addLog('☎️ 전화 권한: ${permissions[Permission.phone]}');
-    _addLog('👥 연락처 권한: ${permissions[Permission.contacts]}');
 
     if (permissions[Permission.sms]!.isGranted &&
-        permissions[Permission.phone]!.isGranted &&
-        permissions[Permission.contacts]!.isGranted) {
+        permissions[Permission.phone]!.isGranted) {
       _addLog('✅ 모든 권한 허용됨!');
     } else {
       _addLog('❌ 일부 권한이 거부되었습니다');
-      _addLog('⚠️ 전화번호를 읽을 수 없을 수 있습니다');
     }
   }
 
   Future<void> _startPhoneStateListener() async {
     _addLog('📞 전화 감지 시작...');
+    _addLog('🎯 발신/수신 전화 모두 감지합니다!');
     
     try {
-      _phoneStateSubscription = PhoneState.stream.listen((PhoneState state) {
+      _phoneStateSubscription = PhoneState.stream.listen(
+        (PhoneState state) async {
+        _addLog('🔔 전화 이벤트 수신!');
         _addLog('📱 전화 상태: ${state.status}');
+        _addLog('📱 이전 상태: ${_lastPhoneState.status}');
         
-        // 전화번호 저장
+        // 수신 전화: state.number에서 번호 읽기
         if (state.number != null && state.number!.isNotEmpty) {
           _lastPhoneNumber = state.number;
-          _addLog('📲 전화번호 감지: $_lastPhoneNumber');
-        } else {
-          _addLog('⚠️ 전화번호 없음 (권한 문제일 수 있음)');
+          _addLog('📲 수신 전화번호 감지: $_lastPhoneNumber');
         }
         
         // 통화 종료 시 SMS 발송
@@ -119,21 +116,55 @@ class _HomePageState extends State<HomePage> {
           
           if (!_autoSendEnabled) {
             _addLog('⏸️ 자동발송이 꺼져있음');
-          } else if (_lastPhoneNumber == null) {
-            _addLog('❌ 전화번호가 없어서 SMS 발송 불가');
-            _addLog('💡 설정에서 전화 권한을 확인하세요');
           } else {
-            _addLog('🚀 SMS 자동발송 시작!');
-            _sendSMS(_lastPhoneNumber!);
+            // 발신 전화일 경우 CallLog에서 번호 가져오기
+            if (_lastPhoneNumber == null) {
+              _addLog('🔍 발신 전화로 추정 - CallLog에서 번호 확인 중...');
+              await _getLastOutgoingNumber();
+            }
+            
+            if (_lastPhoneNumber != null) {
+              _addLog('🚀 SMS 자동발송 시작!');
+              _sendSMS(_lastPhoneNumber!);
+            } else {
+              _addLog('❌ 전화번호를 찾을 수 없습니다');
+            }
           }
         }
         
+        // 새로운 통화 시작 시 번호 초기화
+        if (state.status == PhoneStateStatus.CALL_STARTED) {
+          _lastPhoneNumber = state.number; // 수신 전화면 여기서 번호 저장
+        }
+        
         _lastPhoneState = state;
-      });
+      },
+      onError: (error) {
+        _addLog('❌ 리스너 에러: $error');
+      },
+      onDone: () {
+        _addLog('⚠️ 리스너 종료됨');
+      },
+      cancelOnError: false,
+      );
       
       _addLog('✅ 전화 감지 리스너 등록 완료!');
     } catch (e) {
       _addLog('❌ 전화 감지 실패: $e');
+    }
+  }
+
+  Future<void> _getLastOutgoingNumber() async {
+    try {
+      final String? phoneNumber = await platform.invokeMethod('getLastOutgoingCall');
+      if (phoneNumber != null && phoneNumber.isNotEmpty) {
+        _lastPhoneNumber = phoneNumber;
+        _addLog('📞 발신 전화번호 확보: $_lastPhoneNumber');
+      } else {
+        _addLog('⚠️ CallLog에서 번호를 찾을 수 없음');
+      }
+    } catch (e) {
+      _addLog('❌ CallLog 읽기 실패: $e');
     }
   }
 
@@ -232,7 +263,7 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('JoU 문자발송 v0.0.3'),
+        title: const Text('JoU 문자발송 v0.0.5'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: Padding(

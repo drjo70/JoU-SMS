@@ -1,6 +1,8 @@
 package com.joyou.sms.jou_sms
 
 import android.telephony.SmsManager
+import android.provider.CallLog
+import android.database.Cursor
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -12,18 +14,25 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
-            if (call.method == "sendSMS") {
-                val phoneNumber = call.argument<String>("phoneNumber")
-                val message = call.argument<String>("message")
-                
-                if (phoneNumber != null && message != null) {
-                    val success = sendSMS(phoneNumber, message)
-                    result.success(success)
-                } else {
-                    result.error("INVALID_ARGUMENT", "Phone number or message is null", null)
+            when (call.method) {
+                "sendSMS" -> {
+                    val phoneNumber = call.argument<String>("phoneNumber")
+                    val message = call.argument<String>("message")
+                    
+                    if (phoneNumber != null && message != null) {
+                        val success = sendSMS(phoneNumber, message)
+                        result.success(success)
+                    } else {
+                        result.error("INVALID_ARGUMENT", "Phone number or message is null", null)
+                    }
                 }
-            } else {
-                result.notImplemented()
+                "getLastOutgoingCall" -> {
+                    val phoneNumber = getLastOutgoingCallNumber()
+                    result.success(phoneNumber)
+                }
+                else -> {
+                    result.notImplemented()
+                }
             }
         }
     }
@@ -36,6 +45,37 @@ class MainActivity : FlutterActivity() {
         } catch (e: Exception) {
             e.printStackTrace()
             false
+        }
+    }
+
+    private fun getLastOutgoingCallNumber(): String? {
+        return try {
+            val projection = arrayOf(
+                CallLog.Calls.NUMBER,
+                CallLog.Calls.TYPE,
+                CallLog.Calls.DATE
+            )
+            
+            val cursor: Cursor? = contentResolver.query(
+                CallLog.Calls.CONTENT_URI,
+                projection,
+                "${CallLog.Calls.TYPE} = ?",
+                arrayOf(CallLog.Calls.OUTGOING_TYPE.toString()),
+                "${CallLog.Calls.DATE} DESC"
+            )
+            
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    val numberIndex = it.getColumnIndex(CallLog.Calls.NUMBER)
+                    if (numberIndex != -1) {
+                        return it.getString(numberIndex)
+                    }
+                }
+            }
+            null
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
         }
     }
 }
