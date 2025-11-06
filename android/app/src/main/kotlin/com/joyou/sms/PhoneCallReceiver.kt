@@ -1,4 +1,4 @@
-package com.joyou.autopromosms.auto_promo_sms
+package com.joyou.sms
 
 import android.content.BroadcastReceiver
 import android.content.Context

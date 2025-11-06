@@ -41,7 +41,7 @@
             android:value="2" />
         
         <!-- 전화 수신 BroadcastReceiver -->
-        <receiver android:name=".PhoneCallReceiver"
+        <receiver android:name="com.joyou.sms.PhoneCallReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.PHONE_STATE"/>
