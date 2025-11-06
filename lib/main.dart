@@ -76,18 +76,24 @@ class _HomePageState extends State<HomePage> {
   Future<void> _requestPermissions() async {
     _addLog('🔐 권한 요청 시작...');
     
+    // phone_state 플러그인이 전화번호를 읽으려면 이 권한들이 필요
     final permissions = await [
       Permission.sms,
       Permission.phone,
       Permission.contacts,
     ].request();
 
+    _addLog('📱 SMS 권한: ${permissions[Permission.sms]}');
+    _addLog('☎️ 전화 권한: ${permissions[Permission.phone]}');
+    _addLog('👥 연락처 권한: ${permissions[Permission.contacts]}');
+
     if (permissions[Permission.sms]!.isGranted &&
         permissions[Permission.phone]!.isGranted &&
         permissions[Permission.contacts]!.isGranted) {
       _addLog('✅ 모든 권한 허용됨!');
     } else {
-      _addLog('❌ 권한이 거부되었습니다');
+      _addLog('❌ 일부 권한이 거부되었습니다');
+      _addLog('⚠️ 전화번호를 읽을 수 없을 수 있습니다');
     }
   }
 
@@ -96,12 +102,14 @@ class _HomePageState extends State<HomePage> {
     
     try {
       _phoneStateSubscription = PhoneState.stream.listen((PhoneState state) {
-        _addLog('📱 전화 상태 변경: ${state.status}');
+        _addLog('📱 전화 상태: ${state.status}');
         
         // 전화번호 저장
         if (state.number != null && state.number!.isNotEmpty) {
           _lastPhoneNumber = state.number;
-          _addLog('📲 전화번호: $_lastPhoneNumber');
+          _addLog('📲 전화번호 감지: $_lastPhoneNumber');
+        } else {
+          _addLog('⚠️ 전화번호 없음 (권한 문제일 수 있음)');
         }
         
         // 통화 종료 시 SMS 발송
@@ -109,10 +117,14 @@ class _HomePageState extends State<HomePage> {
             state.status == PhoneStateStatus.CALL_ENDED) {
           _addLog('🔚 통화 종료 감지!');
           
-          if (_autoSendEnabled && _lastPhoneNumber != null) {
-            _sendSMS(_lastPhoneNumber!);
+          if (!_autoSendEnabled) {
+            _addLog('⏸️ 자동발송이 꺼져있음');
+          } else if (_lastPhoneNumber == null) {
+            _addLog('❌ 전화번호가 없어서 SMS 발송 불가');
+            _addLog('💡 설정에서 전화 권한을 확인하세요');
           } else {
-            _addLog('⏸️ 자동발송이 꺼져있거나 전화번호 없음');
+            _addLog('🚀 SMS 자동발송 시작!');
+            _sendSMS(_lastPhoneNumber!);
           }
         }
         
@@ -153,6 +165,62 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  void _showTestSMSDialog() {
+    final TextEditingController phoneController = TextEditingController(
+      text: _lastPhoneNumber ?? '',
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('테스트 SMS 발송'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _lastPhoneNumber != null
+                  ? '마지막 전화번호: $_lastPhoneNumber'
+                  : '⚠️ 저장된 전화번호 없음',
+              style: TextStyle(
+                color: _lastPhoneNumber != null ? Colors.green : Colors.orange,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: phoneController,
+              decoration: const InputDecoration(
+                labelText: '전화번호',
+                hintText: '010-1234-5678',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.phone,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('취소'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final phoneNumber = phoneController.text.trim();
+              if (phoneNumber.isNotEmpty) {
+                Navigator.pop(context);
+                _addLog('🧪 테스트 SMS 발송: $phoneNumber');
+                _sendSMS(phoneNumber);
+              } else {
+                _addLog('❌ 전화번호를 입력하세요');
+              }
+            },
+            child: const Text('발송'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _phoneStateSubscription?.cancel();
@@ -164,7 +232,7 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('JoU 문자발송 v0.0.2'),
+        title: const Text('JoU 문자발송 v0.0.3'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: Padding(
@@ -226,13 +294,7 @@ class _HomePageState extends State<HomePage> {
                       foregroundColor: Colors.white,
                     ),
                     onPressed: () {
-                      // 테스트용 SMS 발송 (내 번호로)
-                      if (_lastPhoneNumber != null) {
-                        _addLog('🧪 테스트 SMS 발송 (마지막 번호)');
-                        _sendSMS(_lastPhoneNumber!);
-                      } else {
-                        _addLog('❌ 전화번호 없음 (전화를 먼저 받으세요)');
-                      }
+                      _showTestSMSDialog();
                     },
                     child: const Text('테스트 발송'),
                   ),
