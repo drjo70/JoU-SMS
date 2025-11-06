@@ -164,7 +164,7 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('JoU 문자발송 v0.0.1'),
+        title: const Text('JoU 문자발송 v0.0.2'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: Padding(
@@ -208,11 +208,36 @@ class _HomePageState extends State<HomePage> {
               },
             ),
             const SizedBox(height: 8),
-            ElevatedButton(
-              onPressed: () {
-                _saveSettings();
-              },
-              child: const Text('메시지 저장'),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      _saveSettings();
+                    },
+                    child: const Text('메시지 저장'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: () {
+                      // 테스트용 SMS 발송 (내 번호로)
+                      if (_lastPhoneNumber != null) {
+                        _addLog('🧪 테스트 SMS 발송 (마지막 번호)');
+                        _sendSMS(_lastPhoneNumber!);
+                      } else {
+                        _addLog('❌ 전화번호 없음 (전화를 먼저 받으세요)');
+                      }
+                    },
+                    child: const Text('테스트 발송'),
+                  ),
+                ),
+              ],
             ),
             
             const SizedBox(height: 16),
