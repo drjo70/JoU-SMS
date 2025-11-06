@@ -36,6 +36,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   bool _autoSendEnabled = false;
   String _message = '안녕하세요! (주)조유입니다.\n전화 주셔서 감사합니다.';
+  int _sendIntervalDays = 0; // 0=매번, 7=1주일, 14=2주일, 30=1개월
   final TextEditingController _messageController = TextEditingController();
   static const platform = MethodChannel('com.joyou.sms/sms');
   
@@ -61,16 +62,73 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       _autoSendEnabled = prefs.getBool('auto_send_enabled') ?? false;
       _message = prefs.getString('message') ?? _message;
+      _sendIntervalDays = prefs.getInt('send_interval_days') ?? 0;
       _messageController.text = _message;
     });
     _addLog('✅ 설정 불러오기 완료');
+    _addLog('  - 발송 간격: ${_getIntervalText()}');
   }
 
   Future<void> _saveSettings() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('auto_send_enabled', _autoSendEnabled);
     await prefs.setString('message', _message);
+    await prefs.setInt('send_interval_days', _sendIntervalDays);
     _addLog('💾 설정 저장 완료');
+  }
+
+  String _getIntervalText() {
+    switch (_sendIntervalDays) {
+      case 0:
+        return '매번';
+      case 7:
+        return '1주일';
+      case 14:
+        return '2주일';
+      case 30:
+        return '1개월';
+      default:
+        return '매번';
+    }
+  }
+
+  Future<bool> _canSendToNumber(String phoneNumber) async {
+    if (_sendIntervalDays == 0) {
+      _addLog('⏱️ 발송 간격: 매번 (체크 안 함)');
+      return true; // 매번 발송
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'last_sent_$phoneNumber';
+    final lastSentTime = prefs.getInt(key);
+
+    if (lastSentTime == null) {
+      _addLog('📝 $phoneNumber: 첫 발송');
+      return true; // 처음 발송
+    }
+
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final daysPassed = (now - lastSentTime) / (1000 * 60 * 60 * 24);
+
+    _addLog('⏱️ $phoneNumber: ${daysPassed.toStringAsFixed(1)}일 경과');
+    _addLog('  - 설정 간격: $_sendIntervalDays일');
+
+    if (daysPassed >= _sendIntervalDays) {
+      _addLog('✅ 발송 가능! (${daysPassed.toStringAsFixed(1)}일 >= $_sendIntervalDays일)');
+      return true;
+    } else {
+      final remainingDays = (_sendIntervalDays - daysPassed).ceil();
+      _addLog('⏸️ 발송 스킵! ($remainingDays일 후 가능)');
+      return false;
+    }
+  }
+
+  Future<void> _recordSentTime(String phoneNumber) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'last_sent_$phoneNumber';
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await prefs.setInt(key, now);
+    _addLog('📝 발송 기록 저장: $phoneNumber');
   }
 
   Future<void> _requestPermissions() async {
@@ -169,8 +227,17 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _sendSMS(String phoneNumber) async {
-    _addLog('🚀 SMS 발송 시작...');
+    _addLog('🚀 SMS 발송 체크 시작...');
     _addLog('  - 받는 사람: $phoneNumber');
+    _addLog('  - 발송 간격 설정: ${_getIntervalText()}');
+    
+    // 발송 간격 체크
+    final canSend = await _canSendToNumber(phoneNumber);
+    if (!canSend) {
+      _addLog('⏸️ 발송 간격 조건 미충족 - SMS 스킵');
+      return;
+    }
+    
     _addLog('  - 메시지: $_message');
     
     try {
@@ -181,6 +248,7 @@ class _HomePageState extends State<HomePage> {
       
       if (result) {
         _addLog('✅✅✅ SMS 발송 완료!');
+        await _recordSentTime(phoneNumber); // 발송 시간 기록
       } else {
         _addLog('❌ SMS 발송 실패');
       }
@@ -263,7 +331,7 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('JoU 문자발송 v0.0.5'),
+        title: const Text('JoU 문자발송 v0.3.0'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: Padding(
@@ -287,6 +355,50 @@ class _HomePageState extends State<HomePage> {
                   _saveSettings();
                   _addLog(_autoSendEnabled ? '✅ 자동발송 ON' : '⏸️ 자동발송 OFF');
                 },
+              ),
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // 발송 간격 선택
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '발송 간격',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<int>(
+                      value: _sendIntervalDays,
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 0, child: Text('매번')),
+                        DropdownMenuItem(value: 7, child: Text('1주일')),
+                        DropdownMenuItem(value: 14, child: Text('2주일')),
+                        DropdownMenuItem(value: 30, child: Text('1개월')),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          _sendIntervalDays = value!;
+                        });
+                        _saveSettings();
+                        _addLog('⏱️ 발송 간격 변경: ${_getIntervalText()}');
+                      },
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '동일 번호에 ${_getIntervalText()} 발송',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+                ),
               ),
             ),
             

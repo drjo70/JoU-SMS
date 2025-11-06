@@ -2,7 +2,7 @@ name: jou_sms
 description: "소상공인을 위한 초간단 자동 홍보문자 앱"
 publish_to: 'none'
 
-version: 0.2.6+11
+version: 0.3.0+12
 
 environment:
   sdk: ^3.9.2
