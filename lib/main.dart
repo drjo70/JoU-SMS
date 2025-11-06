@@ -41,6 +41,7 @@ class _HomePageState extends State<HomePage> {
   static const platform = MethodChannel('com.joyou.sms/sms');
   
   String? _lastPhoneNumber;
+  bool _isSending = false; // 중복 발송 방지 플래그
   PhoneState _lastPhoneState = PhoneState.nothing();
   StreamSubscription<PhoneState>? _phoneStateSubscription;
   List<String> _logs = [];
@@ -172,6 +173,12 @@ class _HomePageState extends State<HomePage> {
             state.status == PhoneStateStatus.CALL_ENDED) {
           _addLog('🔚 통화 종료 감지!');
           
+          // 중복 발송 방지 체크
+          if (_isSending) {
+            _addLog('⚠️ 이미 SMS 발송 중 - 중복 방지');
+            return;
+          }
+          
           if (!_autoSendEnabled) {
             _addLog('⏸️ 자동발송이 꺼져있음');
           } else {
@@ -183,7 +190,10 @@ class _HomePageState extends State<HomePage> {
             
             if (_lastPhoneNumber != null) {
               _addLog('🚀 SMS 자동발송 시작!');
-              _sendSMS(_lastPhoneNumber!);
+              await _sendSMS(_lastPhoneNumber!);
+              // 발송 후 즉시 초기화
+              _lastPhoneNumber = null;
+              _addLog('🔄 전화번호 초기화 (중복 방지)');
             } else {
               _addLog('❌ 전화번호를 찾을 수 없습니다');
             }
@@ -227,20 +237,29 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _sendSMS(String phoneNumber) async {
-    _addLog('🚀 SMS 발송 체크 시작...');
-    _addLog('  - 받는 사람: $phoneNumber');
-    _addLog('  - 발송 간격 설정: ${_getIntervalText()}');
-    
-    // 발송 간격 체크
-    final canSend = await _canSendToNumber(phoneNumber);
-    if (!canSend) {
-      _addLog('⏸️ 발송 간격 조건 미충족 - SMS 스킵');
+    // 중복 발송 방지
+    if (_isSending) {
+      _addLog('⚠️ 이미 발송 중 - 중복 방지');
       return;
     }
     
-    _addLog('  - 메시지: $_message');
+    _isSending = true;
+    _addLog('🔒 발송 잠금 활성화');
     
     try {
+      _addLog('🚀 SMS 발송 체크 시작...');
+      _addLog('  - 받는 사람: $phoneNumber');
+      _addLog('  - 발송 간격 설정: ${_getIntervalText()}');
+      
+      // 발송 간격 체크
+      final canSend = await _canSendToNumber(phoneNumber);
+      if (!canSend) {
+        _addLog('⏸️ 발송 간격 조건 미충족 - SMS 스킵');
+        return;
+      }
+      
+      _addLog('  - 메시지: $_message');
+      
       final bool result = await platform.invokeMethod('sendSMS', {
         'phoneNumber': phoneNumber,
         'message': _message,
@@ -254,6 +273,9 @@ class _HomePageState extends State<HomePage> {
       }
     } catch (e) {
       _addLog('❌ SMS 발송 실패: $e');
+    } finally {
+      _isSending = false;
+      _addLog('🔓 발송 잠금 해제');
     }
   }
 
@@ -331,7 +353,7 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('JoU 문자발송 v0.3.0'),
+        title: const Text('JoU 문자발송 v0.3.1'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: Padding(
