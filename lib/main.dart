@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -7,10 +8,22 @@ import 'dart:convert';
 import 'services/log_service.dart';
 import 'screens/log_viewer_screen.dart';
 
+// MethodChannel for native communication
+const platform = MethodChannel('com.joyou.sms/phone');
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await LogService().init();
-  await LogService().log('🚀 [v0.2.0] 앱 시작!');
+  await LogService().log('🚀 [v0.2.4] 앱 시작!');
+  
+  // BroadcastReceiver 등록 확인
+  try {
+    final bool? result = await platform.invokeMethod('registerReceiver');
+    await LogService().log('📡 [v0.2.4] BroadcastReceiver 등록: $result');
+  } catch (e) {
+    await LogService().log('❌ [v0.2.4] BroadcastReceiver 등록 실패: $e');
+  }
+  
   runApp(const MyApp());
 }
 
